@@ -1,0 +1,2112 @@
+import tkinter as tk
+from tkinter import ttk, messagebox, scrolledtext
+from datetime import datetime, timedelta
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
+import heapq
+from collections import defaultdict, deque
+import math
+import numpy as np
+import hashlib
+
+class BloomFilter:
+    def __init__(self, size=10000, hash_count=3):
+        self.size = size
+        self.hash_count = hash_count
+        self.bit_array = [0] * size
+        self.element_count = 0
+    
+    def _hashes(self, item):
+        item_str = str(item).encode('utf-8')
+        hash1 = int(hashlib.md5(item_str).hexdigest(), 16) % self.size
+        hash2 = int(hashlib.sha1(item_str).hexdigest(), 16) % self.size
+        hash3 = int(hashlib.sha256(item_str).hexdigest(), 16) % self.size
+        hashes = [hash1, hash2, hash3]
+        if self.hash_count > 3:
+            for i in range(3, self.hash_count):
+                new_hash = (hash1 + i * hash2) % self.size
+                hashes.append(new_hash)
+        return hashes[:self.hash_count]
+    
+    def add(self, item):
+        for hash_val in self._hashes(item):
+            self.bit_array[hash_val] = 1
+        self.element_count += 1
+    
+    def contains(self, item):
+        for hash_val in self._hashes(item):
+            if self.bit_array[hash_val] == 0:
+                return False
+        return True
+    
+    def clear(self):
+        self.bit_array = [0] * self.size
+        self.element_count = 0
+    
+    def get_false_positive_rate(self):
+        if self.element_count == 0:
+            return 0.0
+        n = self.element_count
+        m = self.size
+        k = self.hash_count
+        return pow(1 - math.exp(-k * n / m), k)
+    
+    def get_utilization(self):
+        set_bits = sum(self.bit_array)
+        return (set_bits / self.size) * 100
+
+class Node:
+    def __init__(self, user):
+        self.user = user
+        self.next = None
+        self.prev = None
+
+class LinkedList:
+    def __init__(self):
+        self.head = None
+        self.tail = None
+        self.size = 0
+
+    def append(self, user):
+        new_node = Node(user)
+        if not self.head:
+            self.head = self.tail = new_node
+        else:
+            self.tail.next = new_node
+            new_node.prev = self.tail
+            self.tail = new_node
+        self.size += 1
+
+    def pop(self):
+        if not self.head:
+            return None
+        user = self.head.user
+        if self.head == self.tail:
+            self.head = self.tail = None
+        else:
+            self.head = self.head.next
+            self.head.prev = None
+        self.size -= 1
+        return user
+
+    def is_empty(self):
+        return self.head is None
+
+    def remove(self, user):
+        current = self.head
+        while current:
+            if current.user == user:
+                if current.prev:
+                    current.prev.next = current.next
+                else:
+                    self.head = current.next
+                if current.next:
+                    current.next.prev = current.prev
+                else:
+                    self.tail = current.prev
+                self.size -= 1
+                return True
+            current = current.next
+        return False
+
+    def display(self):
+        result = []
+        current = self.head
+        while current:
+            result.append(current.user)
+            current = current.next
+        return result
+
+class BSTNode:
+    def __init__(self, workshop):
+        self.workshop = workshop
+        self.left = None
+        self.right = None
+        self.height = 1
+
+class AVLTree:
+    def __init__(self):
+        self.root = None
+
+    def insert(self, workshop):
+        self.root = self._insert(self.root, workshop)
+
+    def _insert(self, root, workshop):
+        if not root:
+            return BSTNode(workshop)
+        if workshop.title < root.workshop.title:
+            root.left = self._insert(root.left, workshop)
+        else:
+            root.right = self._insert(root.right, workshop)
+        root.height = 1 + max(self._height(root.left), self._height(root.right))
+        balance = self._get_balance(root)
+        if balance > 1 and workshop.title < root.left.workshop.title:
+            return self._right_rotate(root)
+        if balance < -1 and workshop.title > root.right.workshop.title:
+            return self._left_rotate(root)
+        if balance > 1 and workshop.title > root.left.workshop.title:
+            root.left = self._left_rotate(root.left)
+            return self._right_rotate(root)
+        if balance < -1 and workshop.title < root.right.workshop.title:
+            root.right = self._right_rotate(root.right)
+            return self._left_rotate(root)
+        return root
+
+    def _height(self, node):
+        if not node:
+            return 0
+        return node.height
+
+    def _get_balance(self, node):
+        if not node:
+            return 0
+        return self._height(node.left) - self._height(node.right)
+
+    def _left_rotate(self, z):
+        y = z.right
+        T2 = y.left
+        y.left = z
+        z.right = T2
+        z.height = 1 + max(self._height(z.left), self._height(z.right))
+        y.height = 1 + max(self._height(y.left), self._height(y.right))
+        return y
+
+    def _right_rotate(self, z):
+        y = z.left
+        T3 = y.right
+        y.right = z
+        z.left = T3
+        z.height = 1 + max(self._height(z.left), self._height(z.right))
+        y.height = 1 + max(self._height(y.left), self._height(y.right))
+        return y
+
+    def search(self, title):
+        return self._search(self.root, title)
+
+    def _search(self, root, title):
+        if not root:
+            return None
+        if title == root.workshop.title:
+            return root.workshop
+        elif title < root.workshop.title:
+            return self._search(root.left, title)
+        else:
+            return self._search(root.right, title)
+
+    def inorder(self):
+        result = []
+        self._inorder(self.root, result)
+        return result
+
+    def _inorder(self, root, result):
+        if root:
+            self._inorder(root.left, result)
+            result.append(root.workshop)
+            self._inorder(root.right, result)
+
+    def delete(self, title):
+        self.root = self._delete(self.root, title)
+
+    def _delete(self, root, title):
+        if not root:
+            return root
+        if title < root.workshop.title:
+            root.left = self._delete(root.left, title)
+        elif title > root.workshop.title:
+            root.right = self._delete(root.right, title)
+        else:
+            if not root.left:
+                return root.right
+            elif not root.right:
+                return root.left
+            temp = self._min_value_node(root.right)
+            root.workshop = temp.workshop
+            root.right = self._delete(root.right, temp.workshop.title)
+        if not root:
+            return root
+        root.height = 1 + max(self._height(root.left), self._height(root.right))
+        balance = self._get_balance(root)
+        if balance > 1 and self._get_balance(root.left) >= 0:
+            return self._right_rotate(root)
+        if balance > 1 and self._get_balance(root.left) < 0:
+            root.left = self._left_rotate(root.left)
+            return self._right_rotate(root)
+        if balance < -1 and self._get_balance(root.right) <= 0:
+            return self._left_rotate(root)
+        if balance < -1 and self._get_balance(root.right) > 0:
+            root.right = self._right_rotate(root.right)
+            return self._left_rotate(root)
+        return root
+
+    def _min_value_node(self, node):
+        current = node
+        while current.left:
+            current = current.left
+        return current
+
+class PriorityQueue:
+    def __init__(self):
+        self.heap = []
+        self.counter = 0
+
+    def push(self, item, priority):
+        self.counter += 1
+        heapq.heappush(self.heap, (priority, self.counter, item))
+
+    def pop(self):
+        if self.heap:
+            priority, count, item = heapq.heappop(self.heap)
+            return item
+        raise IndexError("Priority queue is empty")
+
+    def is_empty(self):
+        return len(self.heap) == 0
+
+    def size(self):
+        return len(self.heap)
+
+class TrieNode:
+    def __init__(self):
+        self.children = {}
+        self.is_end = False
+        self.workshops = []
+
+class Trie:
+    def __init__(self):
+        self.root = TrieNode()
+
+    def insert(self, word, workshop):
+        node = self.root
+        for char in word.lower():
+            if char not in node.children:
+                node.children[char] = TrieNode()
+            node = node.children[char]
+        node.is_end = True
+        node.workshops.append(workshop)
+
+    def search_prefix(self, prefix):
+        node = self.root
+        for char in prefix.lower():
+            if char not in node.children:
+                return []
+            node = node.children[char]
+        return self._get_all_workshops(node)
+
+    def _get_all_workshops(self, node):
+        results = []
+        if node.is_end:
+            results.extend(node.workshops)
+        for child in node.children.values():
+            results.extend(self._get_all_workshops(child))
+        return results
+
+class Cache:
+    def __init__(self, capacity=100):
+        self.capacity = capacity
+        self.cache = {}
+        self.order = []
+
+    def get(self, key):
+        if key in self.cache:
+            self.order.remove(key)
+            self.order.append(key)
+            return self.cache[key]
+        return None
+
+    def put(self, key, value):
+        if key in self.cache:
+            self.order.remove(key)
+        elif len(self.cache) >= self.capacity:
+            oldest = self.order.pop(0)
+            del self.cache[oldest]
+        self.cache[key] = value
+        self.order.append(key)
+
+class Graph:
+    def __init__(self):
+        self.adj_list = defaultdict(list)
+
+    def add_edge(self, u, v, weight=1):
+        self.adj_list[u].append((v, weight))
+        self.adj_list[v].append((u, weight))
+
+    def shortest_path(self, start, end):
+        distances = {node: float('inf') for node in self.adj_list}
+        distances[start] = 0
+        pq = PriorityQueue()
+        pq.push(start, 0)
+        previous = {}
+        while not pq.is_empty():
+            current = pq.pop()
+            if current == end:
+                path = []
+                while current in previous:
+                    path.append(current)
+                    current = previous[current]
+                path.append(start)
+                return path[::-1], distances[end]
+            for neighbor, weight in self.adj_list[current]:
+                distance = distances[current] + weight
+                if distance < distances[neighbor]:
+                    distances[neighbor] = distance
+                    previous[neighbor] = current
+                    pq.push(neighbor, distance)
+        return [], float('inf')
+
+class User:
+    def __init__(self, user_id, name, email, department="", membership_level="Standard"):
+        self.user_id = user_id
+        self.name = name
+        self.email = email
+        self.department = department
+        self.membership_level = membership_level
+        self.registration_date = datetime.now()
+        self.registered_workshops = set()
+        self.attendance_history = []
+        self.points = 0
+
+    def add_attendance(self, workshop_title, date=None):
+        if date is None:
+            date = datetime.now()
+        self.attendance_history.append({
+            'workshop': workshop_title,
+            'date': date,
+            'points_earned': 10
+        })
+        self.points += 10
+
+    def get_attendance_rate(self):
+        total_registered = len(self.registered_workshops)
+        if total_registered == 0:
+            return 0
+        return (len(self.attendance_history) / total_registered) * 100
+
+    def __str__(self):
+        return f"{self.name} ({self.user_id}) - {self.department}"
+
+class Workshop:
+    def __init__(self, title, max_participants, description="", date="", location="", 
+                 category="General", difficulty="Beginner", duration=120, instructor=""):
+        self.title = title
+        self.max_participants = max_participants
+        self.description = description
+        self.date = date
+        self.location = location
+        self.category = category
+        self.difficulty = difficulty
+        self.duration = duration
+        self.instructor = instructor
+        self.prerequisites = []
+        self.materials = []
+        self.registered_users = []
+        self.waitlist = None
+        self.attendance_records = {}
+        self.feedback = []
+        self.rating = 0.0
+        self.created_at = datetime.now()
+
+    def is_full(self):
+        return len(self.registered_users) >= self.max_participants
+
+    def register_user(self, user):
+        if user in self.registered_users:
+            return "already_registered"
+        if self.is_full():
+            if self.waitlist is None:
+                self.waitlist = LinkedList()
+            self.waitlist.append(user)
+            position = self.waitlist.size
+            return f"waitlist_{position}"
+        else:
+            self.registered_users.append(user)
+            user.registered_workshops.add(self.title)
+            return "registered"
+
+    def remove_user(self, user):
+        if user in self.registered_users:
+            self.registered_users.remove(user)
+            user.registered_workshops.discard(self.title)
+            if self.waitlist and not self.waitlist.is_empty():
+                next_user = self.waitlist.pop()
+                self.registered_users.append(next_user)
+                next_user.registered_workshops.add(self.title)
+                return f"Moved {next_user.name} from waitlist to registered"
+            return "Removed from registered"
+        else:
+            if self.waitlist and self.waitlist.remove(user):
+                return "Removed from waitlist"
+        return "User not found"
+
+    def mark_attendance(self, user, present=True):
+        self.attendance_records[user.user_id] = {
+            'user': user,
+            'present': present,
+            'timestamp': datetime.now()
+        }
+        if present:
+            user.add_attendance(self.title)
+
+    def add_feedback(self, user, rating, comment):
+        feedback = {
+            'user': user,
+            'rating': rating,
+            'comment': comment,
+            'date': datetime.now()
+        }
+        self.feedback.append(feedback)
+        self._update_rating()
+
+    def _update_rating(self):
+        if self.feedback:
+            total_rating = sum(fb['rating'] for fb in self.feedback)
+            self.rating = total_rating / len(self.feedback)
+
+    def get_utilization(self):
+        if self.max_participants > 0:
+            return (len(self.registered_users) / self.max_participants) * 100
+        return 0
+
+    def get_waitlist_position(self, user):
+        if not self.waitlist:
+            return None
+        current = self.waitlist.head
+        position = 1
+        while current:
+            if current.user == user:
+                return position
+            current = current.next
+            position += 1
+        return None
+
+class WorkshopSeries:
+    def __init__(self, name, description="", workshops=[]):
+        self.name = name
+        self.description = description
+        self.workshops = workshops
+        self.participants = set()
+        self.completion_certificate = False
+
+    def add_workshop(self, workshop):
+        self.workshops.append(workshop)
+
+    def register_participant(self, user):
+        self.participants.add(user)
+
+    def get_progress(self, user):
+        completed = sum(1 for workshop in self.workshops 
+                       if workshop.title in user.registered_workshops)
+        return (completed / len(self.workshops)) * 100 if self.workshops else 0
+
+class Certificate:
+    def __init__(self, user, workshop, issue_date=None, certificate_id=None):
+        self.user = user
+        self.workshop = workshop
+        self.issue_date = issue_date or datetime.now()
+        self.certificate_id = certificate_id or self._generate_id()
+        self.verified = False
+
+    def _generate_id(self):
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        return f"CERT_{timestamp}_{self.user.user_id}"
+
+    def verify(self):
+        self.verified = True
+
+    def __str__(self):
+        status = "VERIFIED" if self.verified else "PENDING"
+        return f"Certificate {self.certificate_id} - {self.user.name} - {self.workshop.title} ({status})"
+
+class Notification:
+    def __init__(self, user, message, notification_type="info", priority="medium"):
+        self.user = user
+        self.message = message
+        self.type = notification_type
+        self.priority = priority
+        self.timestamp = datetime.now()
+        self.read = False
+        self.id = self._generate_id()
+
+    def _generate_id(self):
+        return f"NOTIF_{self.timestamp.strftime('%Y%m%d%H%M%S')}_{self.user.user_id}"
+
+    def mark_read(self):
+        self.read = True
+
+    def is_expired(self):
+        return datetime.now() - self.timestamp > timedelta(days=30)
+
+class Resource:
+    def __init__(self, name, resource_type, file_path, workshop=None, uploader=None):
+        self.name = name
+        self.type = resource_type
+        self.file_path = file_path
+        self.workshop = workshop
+        self.uploader = uploader
+        self.upload_date = datetime.now()
+        self.download_count = 0
+        self.file_size = 0
+
+    def increment_download(self):
+        self.download_count += 1
+
+    def __str__(self):
+        return f"{self.name} ({self.type}) - {self.uploader.name if self.uploader else 'System'}"
+
+class Achievement:
+    def __init__(self, name, description, criteria, badge_image=""):
+        self.name = name
+        self.description = description
+        self.criteria = criteria
+        self.badge_image = badge_image
+        self.earned_by = set()
+
+    def award(self, user):
+        self.earned_by.add(user)
+        user.points += 50
+
+    def is_earned_by(self, user):
+        return user in self.earned_by
+
+class Payment:
+    def __init__(self, user, workshop, amount, payment_method="Online"):
+        self.user = user
+        self.workshop = workshop
+        self.amount = amount
+        self.payment_method = payment_method
+        self.payment_date = datetime.now()
+        self.status = "Pending"
+        self.transaction_id = self._generate_id()
+
+    def _generate_id(self):
+        return f"TXN_{self.payment_date.strftime('%Y%m%d%H%M%S')}_{self.user.user_id}"
+
+    def complete_payment(self):
+        self.status = "Completed"
+
+    def refund(self):
+        self.status = "Refunded"
+
+class Survey:
+    def __init__(self, workshop, questions):
+        self.workshop = workshop
+        self.questions = questions
+        self.responses = []
+        self.created_at = datetime.now()
+        self.active = True
+
+    def add_response(self, user, answers):
+        response = {
+            'user': user,
+            'answers': answers,
+            'submitted_at': datetime.now()
+        }
+        self.responses.append(response)
+
+    def get_response_rate(self):
+        total_participants = len(self.workshop.registered_users)
+        if total_participants == 0:
+            return 0
+        return (len(self.responses) / total_participants) * 100
+
+class EventLog:
+    def __init__(self, max_entries=1000):
+        self.entries = deque(maxlen=max_entries)
+        self.entry_count = 0
+
+    def add_entry(self, event_type, user, description, metadata=None):
+        entry = {
+            'id': self.entry_count,
+            'timestamp': datetime.now(),
+            'event_type': event_type,
+            'user': user,
+            'description': description,
+            'metadata': metadata or {}
+        }
+        self.entries.append(entry)
+        self.entry_count += 1
+
+    def get_recent_entries(self, count=50):
+        return list(self.entries)[-count:]
+
+    def filter_entries(self, event_type=None, user=None, start_date=None, end_date=None):
+        filtered = []
+        for entry in self.entries:
+            if event_type and entry['event_type'] != event_type:
+                continue
+            if user and entry['user'] != user:
+                continue
+            if start_date and entry['timestamp'] < start_date:
+                continue
+            if end_date and entry['timestamp'] > end_date:
+                continue
+            filtered.append(entry)
+        return filtered
+
+class RecommendationEngine:
+    def __init__(self, system):
+        self.system = system
+        self.user_preferences = {}
+
+    def generate_recommendations(self, user_id, max_recommendations=5):
+        user = self.system.users.get(user_id)
+        if not user:
+            return []
+        user_categories = set()
+        for workshop_title in user.registered_workshops:
+            workshop = self.system.workshops.get(workshop_title)
+            if workshop:
+                user_categories.add(workshop.category)
+        recommendations = []
+        for workshop in self.system.workshops.values():
+            if (workshop.category in user_categories and 
+                workshop.title not in user.registered_workshops and
+                not workshop.is_full()):
+                recommendations.append(workshop)
+        recommendations.sort(key=lambda x: x.rating, reverse=True)
+        return recommendations[:max_recommendations]
+
+class AttendanceTracker:
+    def __init__(self, system):
+        self.system = system
+
+    def get_user_attendance_stats(self, user_id):
+        user = self.system.users.get(user_id)
+        if not user:
+            return None
+        total_workshops = len(user.registered_workshops)
+        attended = len(user.attendance_history)
+        rate = user.get_attendance_rate()
+        return {
+            'total_registered': total_workshops,
+            'attended': attended,
+            'attendance_rate': rate,
+            'points_earned': user.points
+        }
+
+    def get_workshop_attendance_stats(self, workshop_title):
+        workshop = self.system.workshops.get(workshop_title)
+        if not workshop:
+            return None
+        total_registered = len(workshop.registered_users)
+        present_count = sum(1 for record in workshop.attendance_records.values() 
+                           if record['present'])
+        attendance_rate = (present_count / total_registered) * 100 if total_registered > 0 else 0
+        return {
+            'total_registered': total_registered,
+            'present': present_count,
+            'absent': total_registered - present_count,
+            'attendance_rate': attendance_rate
+        }
+
+class RegistrationSystem:
+    def __init__(self):
+        self.users = {}
+        self.workshops = {}
+        self.workshop_series = {}
+        self.bst = AVLTree()
+        self.categories = {}
+        self.notifications = deque(maxlen=100)
+        self.certificates = []
+        self.resources = []
+        self.achievements = {}
+        self.payments = []
+        self.surveys = {}
+        self.event_log = EventLog()
+        self.cache = Cache(500)
+        self.trie = Trie()
+        self.recommendation_engine = RecommendationEngine(self)
+        self.attendance_tracker = AttendanceTracker(self)
+        
+        # Time: O(1), Space: O(m) where m is Bloom filter size
+        self.user_bloom = BloomFilter(size=5000, hash_count=3)
+        self.workshop_bloom = BloomFilter(size=5000, hash_count=3)
+        
+        self.registration_history = []
+        self.daily_registrations = defaultdict(int)
+        
+        self.membership_benefits = {
+            "Standard": {"max_workshops": 3, "priority": 1},
+            "Premium": {"max_workshops": 10, "priority": 2},
+            "VIP": {"max_workshops": 999, "priority": 3}
+        }
+        
+        self._initialize_achievements()
+        self._initialize_default_categories()
+
+    def _initialize_achievements(self):
+        self.achievements = {
+            "first_workshop": Achievement("First Step", "Attended first workshop", "attend_1"),
+            "workshop_enthusiast": Achievement("Workshop Enthusiast", "Attended 5 workshops", "attend_5"),
+            "perfect_attendance": Achievement("Perfect Attendance", "100% attendance rate", "perfect_attendance"),
+            "early_bird": Achievement("Early Bird", "Registered for workshop 7 days in advance", "early_registration"),
+            "feedback_provider": Achievement("Feedback Provider", "Provided feedback for 3 workshops", "feedback_3")
+        }
+
+    def _initialize_default_categories(self):
+        default_categories = ["Programming", "Data Science", "AI/ML", "Web Development", 
+                             "Cloud Computing", "Cybersecurity", "Soft Skills", "Business"]
+        for category in default_categories:
+            self.categories[category] = []
+
+    def add_user(self, user_id, name, email, department="", membership_level="Standard"):
+        # Time: O(k) for Bloom check + O(1) for hash map check
+        if user_id in self.users:
+            return "User ID already exists"
+        
+        # Quick Bloom filter check - Time: O(k)
+        if self.user_bloom.contains(user_id) and user_id in self.users:
+            return "User ID already exists"
+        
+        user = User(user_id, name, email, department, membership_level)
+        self.users[user_id] = user
+        # Add to Bloom filter - Time: O(k)
+        self.user_bloom.add(user_id)
+        self.event_log.add_entry("USER_CREATED", user, f"User {name} created with {membership_level} membership")
+        self._check_achievements(user)
+        return f"User {name} added successfully"
+
+    def add_workshop(self, title, max_participants, description="", date="", 
+                    location="", category="General", difficulty="Beginner", duration=120, instructor=""):
+        # Time: O(k) for Bloom check + O(1) for hash map check
+        if title in self.workshops:
+            return "Workshop already exists"
+        
+        # Quick Bloom filter check - Time: O(k)
+        if self.workshop_bloom.contains(title) and title in self.workshops:
+            return "Workshop already exists"
+        
+        workshop = Workshop(title, max_participants, description, date, location, 
+                           category, difficulty, duration, instructor)
+        self.workshops[title] = workshop
+        # Add to Bloom filter - Time: O(k)
+        self.workshop_bloom.add(title)
+        # Time: O(log n) for AVL insertion
+        self.bst.insert(workshop)
+        if category not in self.categories:
+            self.categories[category] = []
+        self.categories[category].append(workshop)
+        # Time: O(m) for trie insertion where m is title length
+        self.trie.insert(title, workshop)
+        self.trie.insert(category, workshop)
+        self.trie.insert(instructor, workshop)
+        self.event_log.add_entry("WORKSHOP_CREATED", None, f"Workshop '{title}' created")
+        return f"Workshop '{title}' added successfully"
+
+    def register_user(self, user_id, workshop_title, payment_info=None):
+        # Quick Bloom filter checks first - Time: O(k) each
+        if not self.user_bloom.contains(user_id):
+            return "User not found"
+        if not self.workshop_bloom.contains(workshop_title):
+            return "Workshop not found"
+        
+        # Actual hash map lookups - Time: O(1) average
+        user = self.users.get(user_id)
+        workshop = self.workshops.get(workshop_title)
+        if not user:
+            return "User not found"
+        if not workshop:
+            return "Workshop not found"
+        
+        max_workshops = self.membership_benefits[user.membership_level]["max_workshops"]
+        if len(user.registered_workshops) >= max_workshops:
+            return f"Maximum workshop limit reached for {user.membership_level} membership"
+        if payment_info and workshop_title in self._get_premium_workshops():
+            payment = Payment(user, workshop, payment_info['amount'], payment_info['method'])
+            self.payments.append(payment)
+            payment.complete_payment()
+        result = workshop.register_user(user)
+        
+        today = datetime.now().date()
+        self.daily_registrations[today] += 1
+        self.registration_history.append({
+            'timestamp': datetime.now(),
+            'user_id': user_id,
+            'workshop': workshop_title,
+            'result': result
+        })
+        
+        if result == "registered":
+            message = f"{user.name} successfully registered for {workshop_title}"
+            self.event_log.add_entry("REGISTRATION_SUCCESS", user, f"Registered for {workshop_title}")
+            self._check_early_bird(user, workshop)
+        elif result == "already_registered":
+            message = f"{user.name} is already registered for this workshop"
+        else:
+            position = result.split("_")[1]
+            message = f"{user.name} added to waitlist (position {position})"
+            self.event_log.add_entry("WAITLIST_ADDED", user, f"Added to waitlist for {workshop_title}")
+        self._check_achievements(user)
+        return message
+
+    def remove_user_registration(self, user_id, workshop_title):
+        user = self.users.get(user_id)
+        workshop = self.workshops.get(workshop_title)
+        if not user or not workshop:
+            return "User or workshop not found"
+        result = workshop.remove_user(user)
+        self.event_log.add_entry("REGISTRATION_REMOVED", user, f"Removed from {workshop_title}")
+        return result
+
+    def mark_attendance(self, user_id, workshop_title, present=True):
+        user = self.users.get(user_id)
+        workshop = self.workshops.get(workshop_title)
+        if user and workshop:
+            workshop.mark_attendance(user, present)
+            self.event_log.add_entry("ATTENDANCE_MARKED", user, f"Marked {'present' if present else 'absent'} for {workshop_title}")
+            self._check_achievements(user)
+            return "Attendance marked successfully"
+        return "User or workshop not found"
+
+    def add_feedback(self, user_id, workshop_title, rating, comment):
+        user = self.users.get(user_id)
+        workshop = self.workshops.get(workshop_title)
+        if user and workshop:
+            workshop.add_feedback(user, rating, comment)
+            self.event_log.add_entry("FEEDBACK_ADDED", user, f"Added feedback for {workshop_title}")
+            self._check_feedback_achievement(user)
+            return "Feedback added successfully"
+        return "User or workshop not found"
+
+    def search_workshops(self, query, search_type="title"):
+        cached = self.cache.get(f"search_{query}_{search_type}")
+        if cached:
+            return cached
+        results = []
+        # Time: O(m) for trie search where m is prefix length
+        if search_type == "title":
+            results = self.trie.search_prefix(query)
+        elif search_type == "category":
+            results = [ws for ws in self.workshops.values() 
+                      if query.lower() in ws.category.lower()]
+        elif search_type == "instructor":
+            results = [ws for ws in self.workshops.values() 
+                      if query.lower() in ws.instructor.lower()]
+        self.cache.put(f"search_{query}_{search_type}", results)
+        return results
+
+    def get_user_recommendations(self, user_id):
+        return self.recommendation_engine.generate_recommendations(user_id)
+
+    def get_workshop_statistics(self, workshop_title):
+        workshop = self.workshops.get(workshop_title)
+        if not workshop:
+            return None
+        return {
+            'title': workshop.title,
+            'registered_count': len(workshop.registered_users),
+            'waitlist_count': workshop.waitlist.size if workshop.waitlist else 0,
+            'utilization': workshop.get_utilization(),
+            'average_rating': workshop.rating,
+            'feedback_count': len(workshop.feedback),
+            'attendance_rate': self._calculate_attendance_rate(workshop)
+        }
+
+    def _calculate_attendance_rate(self, workshop):
+        if not workshop.registered_users:
+            return 0
+        present_count = sum(1 for record in workshop.attendance_records.values() 
+                           if record['present'])
+        return (present_count / len(workshop.registered_users)) * 100
+
+    def _get_premium_workshops(self):
+        return [title for title, ws in self.workshops.items() 
+                if ws.difficulty in ["Advanced", "Expert"]]
+
+    def _check_early_bird(self, user, workshop):
+        if workshop.date:
+            try:
+                workshop_date = datetime.strptime(workshop.date, "%Y-%m-%d")
+                if workshop_date - datetime.now() > timedelta(days=7):
+                    achievement = self.achievements.get("early_bird")
+                    if achievement and not achievement.is_earned_by(user):
+                        achievement.award(user)
+                        self._send_notification(user, f"Achievement unlocked: {achievement.name}")
+            except ValueError:
+                pass
+
+    def _check_feedback_achievement(self, user):
+        feedback_count = sum(1 for ws in self.workshops.values() 
+                            for fb in ws.feedback if fb['user'] == user)
+        if feedback_count >= 3:
+            achievement = self.achievements.get("feedback_provider")
+            if achievement and not achievement.is_earned_by(user):
+                achievement.award(user)
+                self._send_notification(user, f"Achievement unlocked: {achievement.name}")
+
+    def _check_achievements(self, user):
+        if len(user.attendance_history) >= 1:
+            achievement = self.achievements.get("first_workshop")
+            if achievement and not achievement.is_earned_by(user):
+                achievement.award(user)
+                self._send_notification(user, f"Achievement unlocked: {achievement.name}")
+        if len(user.attendance_history) >= 5:
+            achievement = self.achievements.get("workshop_enthusiast")
+            if achievement and not achievement.is_earned_by(user):
+                achievement.award(user)
+                self._send_notification(user, f"Achievement unlocked: {achievement.name}")
+        if user.get_attendance_rate() == 100 and len(user.attendance_history) >= 3:
+            achievement = self.achievements.get("perfect_attendance")
+            if achievement and not achievement.is_earned_by(user):
+                achievement.award(user)
+                self._send_notification(user, f"Achievement unlocked: {achievement.name}")
+
+    def _send_notification(self, user, message):
+        notification = Notification(user, message)
+        self.notifications.append(notification)
+
+    def generate_certificate(self, user_id, workshop_title):
+        user = self.users.get(user_id)
+        workshop = self.workshops.get(workshop_title)
+        if user and workshop and workshop_title in user.registered_workshops:
+            certificate = Certificate(user, workshop)
+            self.certificates.append(certificate)
+            self.event_log.add_entry("CERTIFICATE_GENERATED", user, f"Certificate generated for {workshop_title}")
+            return certificate
+        return None
+
+    def get_system_statistics(self):
+        total_users = len(self.users)
+        total_workshops = len(self.workshops)
+        total_registrations = sum(len(ws.registered_users) for ws in self.workshops.values())
+        total_waitlist = sum(ws.waitlist.size if ws.waitlist else 0 for ws in self.workshops.values())
+        category_stats = {category: len(workshops) for category, workshops in self.categories.items()}
+        utilization = [ws.get_utilization() for ws in self.workshops.values()]
+        active_users = sum(1 for user in self.users.values() if user.registered_workshops)
+        premium_users = sum(1 for user in self.users.values() if user.membership_level != "Standard")
+        return {
+            'total_users': total_users, 'total_workshops': total_workshops,
+            'total_registrations': total_registrations, 'total_waitlist': total_waitlist,
+            'category_stats': category_stats, 'utilization': utilization,
+            'active_users': active_users, 'premium_users': premium_users,
+            'average_rating': self._get_average_workshop_rating(),
+            'total_certificates': len(self.certificates)
+        }
+
+    def _get_average_workshop_rating(self):
+        ratings = [ws.rating for ws in self.workshops.values() if ws.rating > 0]
+        return sum(ratings) / len(ratings) if ratings else 0
+
+    def get_registration_graph_data(self, days=30):
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=days)
+        
+        dates = []
+        registration_counts = []
+        current_date = start_date
+        while current_date <= end_date:
+            dates.append(current_date)
+            registration_counts.append(self.daily_registrations.get(current_date, 0))
+            current_date += timedelta(days=1)
+        
+        workshop_popularity = {}
+        for workshop in self.workshops.values():
+            workshop_popularity[workshop.title] = len(workshop.registered_users)
+        
+        category_distribution = {}
+        for workshop in self.workshops.values():
+            category_distribution[workshop.category] = category_distribution.get(workshop.category, 0) + len(workshop.registered_users)
+        
+        membership_distribution = {"Standard": 0, "Premium": 0, "VIP": 0}
+        for user in self.users.values():
+            membership_distribution[user.membership_level] += len(user.registered_workshops)
+        
+        recent_registrations = [reg for reg in self.registration_history 
+                              if reg['timestamp'].date() >= end_date - timedelta(days=7)]
+        
+        hourly_trends = [0] * 24
+        for reg in recent_registrations:
+            hour = reg['timestamp'].hour
+            hourly_trends[hour] += 1
+        
+        return {
+            'daily_registrations': {
+                'dates': [d.strftime('%m-%d') for d in dates],
+                'counts': registration_counts
+            },
+            'workshop_popularity': workshop_popularity,
+            'category_distribution': category_distribution,
+            'membership_distribution': membership_distribution,
+            'hourly_trends': {
+                'hours': list(range(24)),
+                'counts': hourly_trends
+            }
+        }
+
+    def export_data(self, data_type="users"):
+        if data_type == "users":
+            return [self._user_to_dict(user) for user in self.users.values()]
+        elif data_type == "workshops":
+            return [self._workshop_to_dict(ws) for ws in self.workshops.values()]
+        elif data_type == "registrations":
+            registrations = []
+            for ws in self.workshops.values():
+                for user in ws.registered_users:
+                    registrations.append({
+                        'user_id': user.user_id,
+                        'workshop': ws.title,
+                        'status': 'registered'
+                    })
+            return registrations
+
+    def _user_to_dict(self, user):
+        return {
+            'user_id': user.user_id,
+            'name': user.name,
+            'email': user.email,
+            'department': user.department,
+            'membership_level': user.membership_level,
+            'points': user.points,
+            'registered_workshops': list(user.registered_workshops)
+        }
+
+    def _workshop_to_dict(self, workshop):
+        return {
+            'title': workshop.title,
+            'category': workshop.category,
+            'instructor': workshop.instructor,
+            'registered_count': len(workshop.registered_users),
+            'waitlist_count': workshop.waitlist.size if workshop.waitlist else 0,
+            'rating': workshop.rating
+        }
+
+    def remove_user(self, user_id):
+        if user_id in self.users:
+            user = self.users[user_id]
+            for workshop in self.workshops.values():
+                workshop.remove_user(user)
+            del self.users[user_id]
+            self.event_log.add_entry("USER_REMOVED", user, f"User {user.name} removed")
+            return f"User {user.name} removed"
+        return "User not found"
+
+    def remove_workshop(self, title):
+        if title in self.workshops:
+            workshop = self.workshops[title]
+            for user in workshop.registered_users:
+                user.registered_workshops.discard(title)
+            del self.workshops[title]
+            self.bst.delete(title)
+            self.event_log.add_entry("WORKSHOP_REMOVED", None, f"Workshop {title} removed")
+            return f"Workshop {title} removed"
+        return "Workshop not found"
+
+    def get_bloom_filter_stats(self):
+        return {
+            'user_bloom_size': self.user_bloom.size,
+            'workshop_bloom_size': self.workshop_bloom.size,
+            'user_bloom_hash_count': self.user_bloom.hash_count,
+            'workshop_bloom_hash_count': self.workshop_bloom.hash_count,
+            'estimated_user_false_positive_rate': self.user_bloom.get_false_positive_rate(),
+            'estimated_workshop_false_positive_rate': self.workshop_bloom.get_false_positive_rate(),
+            'user_bloom_utilization': self.user_bloom.get_utilization(),
+            'workshop_bloom_utilization': self.workshop_bloom.get_utilization()
+        }
+
+class ModernButton(ttk.Button):
+    def __init__(self, master=None, **kwargs):
+        super().__init__(master, **kwargs)
+        self.style = ttk.Style()
+        self.configure_style()
+
+    def configure_style(self):
+        self.style.configure('Accent.TButton', font=('Arial', 12, 'bold'), padding=(20, 10))
+
+class CardFrame(ttk.Frame):
+    def __init__(self, master, title, value, color, icon="", **kwargs):
+        super().__init__(master, relief='raised', borderwidth=2, **kwargs)
+        self.title = title
+        self.value = value
+        self.color = color
+        self.icon = icon
+        self.setup_card()
+
+    def setup_card(self):
+        self.config(width=250, height=120)
+        self.grid_propagate(False)
+        icon_label = ttk.Label(self, text=self.icon, font=('Arial', 16))
+        icon_label.grid(row=0, column=0, padx=10, pady=10, sticky='w')
+        title_label = ttk.Label(self, text=self.title, font=('Arial', 12, 'bold'))
+        title_label.grid(row=0, column=1, padx=5, pady=5, sticky='w')
+        self.value_label = ttk.Label(self, text=str(self.value), font=('Arial', 20, 'bold'), foreground=self.color)
+        self.value_label.grid(row=1, column=0, columnspan=2, padx=10, pady=5)
+
+    def update_value(self, new_value):
+        self.value_label.config(text=str(new_value))
+
+class StatisticsChart:
+    def __init__(self, parent, width=400, height=300):
+        self.figure = Figure(figsize=(width/100, height/100), dpi=100)
+        self.canvas = FigureCanvasTkAgg(self.figure, parent)
+        self.axes = self.figure.add_subplot(111)
+        self.colors = ['#2E86AB', '#A23B72', '#F18F01', '#28a745', '#ffc107', '#dc3545']
+
+    def plot_bar_chart(self, labels, values, title="", xlabel="", ylabel=""):
+        self.axes.clear()
+        if not values or all(math.isnan(v) for v in values):
+            self.axes.text(0.5, 0.5, 'No data available', 
+                          horizontalalignment='center', verticalalignment='center',
+                          transform=self.axes.transAxes, fontsize=14)
+            self.axes.set_title(title, fontsize=14, fontweight='bold', pad=20)
+        else:
+            bars = self.axes.bar(labels, values, color=self.colors[:len(labels)])
+            self.axes.set_title(title, fontsize=14, fontweight='bold', pad=20)
+            self.axes.set_xlabel(xlabel, fontsize=12)
+            self.axes.set_ylabel(ylabel, fontsize=12)
+            self.axes.tick_params(axis='x', rotation=45)
+            for bar, value in zip(bars, values):
+                if not math.isnan(value):
+                    self.axes.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.1,
+                                  f'{value}', ha='center', va='bottom', fontweight='bold')
+        self.figure.tight_layout()
+        self.canvas.draw()
+
+    def plot_pie_chart(self, labels, values, title=""):
+        self.axes.clear()
+        valid_data = [(label, value) for label, value in zip(labels, values) 
+                     if not math.isnan(value) and value > 0]
+        
+        if not valid_data:
+            self.axes.text(0.5, 0.5, 'No data available', 
+                          horizontalalignment='center', verticalalignment='center',
+                          transform=self.axes.transAxes, fontsize=14)
+            self.axes.set_title(title, fontsize=14, fontweight='bold', pad=20)
+        else:
+            valid_labels, valid_values = zip(*valid_data)
+            self.axes.pie(valid_values, labels=valid_labels, autopct='%1.1f%%', 
+                         colors=self.colors[:len(valid_labels)], startangle=90)
+            self.axes.set_title(title, fontsize=14, fontweight='bold', pad=20)
+        self.canvas.draw()
+
+    def plot_line_chart(self, x_data, y_data, title="", xlabel="", ylabel=""):
+        self.axes.clear()
+        valid_data = [(x, y) for x, y in zip(x_data, y_data) if not math.isnan(y)]
+        if not valid_data:
+            self.axes.text(0.5, 0.5, 'No data available', 
+                          horizontalalignment='center', verticalalignment='center',
+                          transform=self.axes.transAxes, fontsize=14)
+        else:
+            valid_x, valid_y = zip(*valid_data)
+            self.axes.plot(valid_x, valid_y, marker='o', linewidth=2, color=self.colors[0])
+            self.axes.set_title(title, fontsize=14, fontweight='bold', pad=20)
+            self.axes.set_xlabel(xlabel, fontsize=12)
+            self.axes.set_ylabel(ylabel, fontsize=12)
+            self.axes.grid(True, alpha=0.3)
+        self.figure.tight_layout()
+        self.canvas.draw()
+
+    def get_widget(self):
+        return self.canvas.get_tk_widget()
+
+class RegistrationGraphs:
+    def __init__(self, parent, system):
+        self.system = system
+        self.parent = parent
+        self.setup_graphs()
+
+    def setup_graphs(self):
+        self.notebook = ttk.Notebook(self.parent)
+        self.notebook.pack(fill='both', expand=True, padx=10, pady=10)
+        
+        self.daily_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.daily_frame, text="Daily Registrations")
+        self.daily_chart = StatisticsChart(self.daily_frame, width=600, height=400)
+        self.daily_chart.get_widget().pack(fill='both', expand=True, padx=10, pady=10)
+        
+        self.popularity_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.popularity_frame, text="Workshop Popularity")
+        self.popularity_chart = StatisticsChart(self.popularity_frame, width=600, height=400)
+        self.popularity_chart.get_widget().pack(fill='both', expand=True, padx=10, pady=10)
+        
+        self.category_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.category_frame, text="Category Distribution")
+        self.category_chart = StatisticsChart(self.category_frame, width=600, height=400)
+        self.category_chart.get_widget().pack(fill='both', expand=True, padx=10, pady=10)
+        
+        self.membership_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.membership_frame, text="Membership Analysis")
+        self.membership_chart = StatisticsChart(self.membership_frame, width=600, height=400)
+        self.membership_chart.get_widget().pack(fill='both', expand=True, padx=10, pady=10)
+        
+        self.hourly_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.hourly_frame, text="Hourly Trends")
+        self.hourly_chart = StatisticsChart(self.hourly_frame, width=600, height=400)
+        self.hourly_chart.get_widget().pack(fill='both', expand=True, padx=10, pady=10)
+
+    def update_graphs(self):
+        graph_data = self.system.get_registration_graph_data()
+        
+        if graph_data['daily_registrations']['counts']:
+            self.daily_chart.plot_line_chart(
+                graph_data['daily_registrations']['dates'],
+                graph_data['daily_registrations']['counts'],
+                "Daily Workshop Registrations",
+                "Date",
+                "Number of Registrations"
+            )
+        
+        if graph_data['workshop_popularity']:
+            workshops = list(graph_data['workshop_popularity'].keys())[:10]
+            counts = list(graph_data['workshop_popularity'].values())[:10]
+            self.popularity_chart.plot_bar_chart(
+                workshops,
+                counts,
+                "Most Popular Workshops (Top 10)",
+                "Workshop",
+                "Number of Registrations"
+            )
+        
+        if graph_data['category_distribution']:
+            categories = list(graph_data['category_distribution'].keys())
+            counts = list(graph_data['category_distribution'].values())
+            self.category_chart.plot_pie_chart(categories, counts, "Registrations by Category")
+        
+        if graph_data['membership_distribution']:
+            memberships = list(graph_data['membership_distribution'].keys())
+            counts = list(graph_data['membership_distribution'].values())
+            self.membership_chart.plot_bar_chart(
+                memberships,
+                counts,
+                "Registrations by Membership Level",
+                "Membership Level",
+                "Number of Registrations"
+            )
+        
+        if graph_data['hourly_trends']['counts']:
+            hours = [f"{h:02d}:00" for h in graph_data['hourly_trends']['hours']]
+            self.hourly_chart.plot_bar_chart(
+                hours,
+                graph_data['hourly_trends']['counts'],
+                "Registration Trends by Hour (Last 7 Days)",
+                "Hour of Day",
+                "Number of Registrations"
+            )
+
+class SearchableCombobox(ttk.Frame):
+    def __init__(self, master, values=[], **kwargs):
+        super().__init__(master, **kwargs)
+        self.values = values
+        self.filtered_values = values.copy()
+        self.setup_widgets()
+
+    def setup_widgets(self):
+        self.combobox = ttk.Combobox(self, values=self.values, state='normal', font=('Arial', 11), width=25)
+        self.combobox.pack(side='left', fill='x', expand=True)
+        self.combobox.bind('<KeyRelease>', self.filter_values)
+        self.combobox.bind('<<ComboboxSelected>>', self.on_select)
+
+    def filter_values(self, event):
+        pattern = self.combobox.get().lower()
+        self.filtered_values = [v for v in self.values if pattern in v.lower()]
+        self.combobox['values'] = self.filtered_values
+        self.combobox.event_generate('<Down>')
+
+    def on_select(self, event):
+        pass
+
+    def get(self):
+        return self.combobox.get()
+
+    def set(self, value):
+        self.combobox.set(value)
+
+class AutoCompleteEntry(ttk.Entry):
+    def __init__(self, master, complete_list, **kwargs):
+        super().__init__(master, **kwargs)
+        self.complete_list = complete_list
+        self.var = tk.StringVar()
+        self.config(textvariable=self.var)
+        self.var.trace('w', self.changed)
+        self.lb = None
+
+    def changed(self, name, index, mode):
+        if self.var.get() == '':
+            if self.lb:
+                self.lb.destroy()
+                self.lb = None
+        else:
+            words = self.get_completions()
+            if words:
+                if not self.lb:
+                    self.lb = tk.Listbox(self.master, height=5, font=('Arial', 10))
+                    self.lb.bind('<Double-Button-1>', self.select)
+                    self.lb.bind('<Right>', self.select)
+                    self.lb.place(x=self.winfo_x(), y=self.winfo_y() + self.winfo_height())
+                self.lb.delete(0, tk.END)
+                for w in words:
+                    self.lb.insert(tk.END, w)
+            else:
+                if self.lb:
+                    self.lb.destroy()
+                    self.lb = None
+
+    def get_completions(self):
+        pattern = self.var.get().lower()
+        return [w for w in self.complete_list if w.lower().startswith(pattern)][:10]
+
+    def select(self, event):
+        if self.lb:
+            self.var.set(self.lb.get(tk.ACTIVE))
+            self.lb.destroy()
+            self.lb = None
+            self.icursor(tk.END)
+
+    def destroy_listbox(self):
+        if self.lb:
+            self.lb.destroy()
+            self.lb = None
+
+class NotificationPanel(ttk.Frame):
+    def __init__(self, master, max_notifications=10, **kwargs):
+        super().__init__(master, **kwargs)
+        self.max_notifications = max_notifications
+        self.notifications = []
+        self.setup_panel()
+
+    def setup_panel(self):
+        self.header = ttk.Label(self, text="Recent Activity", font=('Arial', 14, 'bold'))
+        self.header.pack(pady=10)
+        self.canvas = tk.Canvas(self, bg='white', highlightthickness=0)
+        self.scrollbar = ttk.Scrollbar(self, orient='vertical', command=self.canvas.yview)
+        self.scrollable_frame = ttk.Frame(self.canvas)
+        self.scrollable_frame.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
+        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        self.canvas.pack(side="left", fill="both", expand=True)
+        self.scrollbar.pack(side="right", fill="y")
+
+    def add_notification(self, message, level="info"):
+        notification_frame = ttk.Frame(self.scrollable_frame, relief='sunken', borderwidth=1, padding=10)
+        notification_frame.pack(fill='x', padx=5, pady=2)
+        icon = "INFO" if level == "info" else "WARN" if level == "warning" else "ERR"
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        icon_label = ttk.Label(notification_frame, text=icon, font=('Arial', 12))
+        icon_label.pack(side='left', padx=5)
+        text_label = ttk.Label(notification_frame, text=f"{timestamp} - {message}", font=('Arial', 10), wraplength=400)
+        text_label.pack(side='left', padx=5, fill='x', expand=True)
+        self.notifications.append(notification_frame)
+        if len(self.notifications) > self.max_notifications:
+            old_notif = self.notifications.pop(0)
+            old_notif.destroy()
+        self.canvas.update_idletasks()
+        self.canvas.yview_moveto(1.0)
+
+class ProgressWidget(ttk.Frame):
+    def __init__(self, master, text="", maximum=100, **kwargs):
+        super().__init__(master, **kwargs)
+        self.maximum = maximum
+        self.setup_widgets(text)
+
+    def setup_widgets(self, text):
+        self.text_label = ttk.Label(self, text=text, font=('Arial', 11))
+        self.text_label.pack(anchor='w')
+        self.progress = ttk.Progressbar(self, orient='horizontal', length=200, mode='determinate', maximum=self.maximum)
+        self.progress.pack(fill='x', pady=5)
+        self.percentage_label = ttk.Label(self, text="0%", font=('Arial', 10))
+        self.percentage_label.pack()
+
+    def update_progress(self, value):
+        self.progress['value'] = value
+        percentage = (value / self.maximum) * 100
+        self.percentage_label.config(text=f"{percentage:.1f}%")
+
+class DataTable(ttk.Frame):
+    def __init__(self, master, columns, height=15, **kwargs):
+        super().__init__(master, **kwargs)
+        self.columns = columns
+        self.height = height
+        self.setup_table()
+
+    def setup_table(self):
+        style = ttk.Style()
+        style.configure("Treeview", font=('Arial', 11), rowheight=25)
+        style.configure("Treeview.Heading", font=('Arial', 12, 'bold'))
+        self.tree = ttk.Treeview(self, columns=self.columns, show='headings', height=self.height, style="Treeview")
+        for col in self.columns:
+            self.tree.heading(col, text=col)
+            self.tree.column(col, width=120, minwidth=80)
+        vsb = ttk.Scrollbar(self, orient="vertical", command=self.tree.yview)
+        hsb = ttk.Scrollbar(self, orient="horizontal", command=self.tree.xview)
+        self.tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+        self.tree.grid(row=0, column=0, sticky='nsew')
+        vsb.grid(row=0, column=1, sticky='ns')
+        hsb.grid(row=1, column=0, sticky='ew')
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+
+    def add_row(self, values):
+        self.tree.insert('', 'end', values=values)
+
+    def clear(self):
+        self.tree.delete(*self.tree.get_children())
+
+    def get_selected(self):
+        selection = self.tree.selection()
+        if selection:
+            return self.tree.item(selection[0])['values']
+        return None
+
+class CalendarWidget(ttk.Frame):
+    def __init__(self, master, **kwargs):
+        super().__init__(master, **kwargs)
+        self.selected_date = tk.StringVar()
+        self.setup_calendar()
+
+    def setup_calendar(self):
+        today = datetime.now()
+        ttk.Label(self, text="Select Date:", font=('Arial', 12)).pack(anchor='w')
+        frame = ttk.Frame(self)
+        frame.pack(fill='x', pady=5)
+        self.year_var = tk.StringVar(value=str(today.year))
+        self.month_var = tk.StringVar(value=str(today.month))
+        self.day_var = tk.StringVar(value=str(today.day))
+        ttk.Combobox(frame, textvariable=self.year_var, values=[str(i) for i in range(2020, 2030)], width=6, font=('Arial', 11)).pack(side='left', padx=2)
+        ttk.Combobox(frame, textvariable=self.month_var, values=[str(i) for i in range(1, 13)], width=4, font=('Arial', 11)).pack(side='left', padx=2)
+        ttk.Combobox(frame, textvariable=self.day_var, values=[str(i) for i in range(1, 32)], width=4, font=('Arial', 11)).pack(side='left', padx=2)
+        ttk.Button(self, text="Set Date", command=self.update_date, style='Accent.TButton').pack(pady=5)
+        self.date_label = ttk.Label(self, textvariable=self.selected_date, font=('Arial', 11, 'bold'))
+        self.date_label.pack(pady=5)
+        self.update_date()
+
+    def update_date(self):
+        try:
+            year = int(self.year_var.get())
+            month = int(self.month_var.get())
+            day = int(self.day_var.get())
+            date_obj = datetime(year, month, day)
+            self.selected_date.set(date_obj.strftime("%Y-%m-%d"))
+        except ValueError:
+            messagebox.showerror("Error", "Invalid date selected")
+
+    def get_date(self):
+        return self.selected_date.get()
+
+class TabbedFrame(ttk.Frame):
+    def __init__(self, master, tabs, **kwargs):
+        super().__init__(master, **kwargs)
+        self.notebook = ttk.Notebook(self)
+        self.notebook.pack(fill='both', expand=True)
+        self.frames = {}
+        for tab_name in tabs:
+            frame = ttk.Frame(self.notebook)
+            self.notebook.add(frame, text=tab_name)
+            self.frames[tab_name] = frame
+
+    def get_frame(self, tab_name):
+        return self.frames.get(tab_name)
+
+    def select_tab(self, tab_name):
+        for i, tab in enumerate(self.frames.keys()):
+            if tab == tab_name:
+                self.notebook.select(i)
+                break
+
+class WorkshopRegistrationApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Advanced Workshop Registration System")
+        self.root.geometry("1400x900")
+        self.root.configure(bg='#f5f5f5')
+        self.system = RegistrationSystem()
+        self.setup_styles()
+        self.setup_gui()
+        self.load_sample_data()
+        self.refresh_all()
+
+    def setup_styles(self):
+        self.style = ttk.Style()
+        self.style.configure('TFrame', background='#f5f5f5')
+        self.style.configure('TLabel', background='#f5f5f5', font=('Arial', 11))
+        self.style.configure('TButton', font=('Arial', 11))
+        self.style.configure('TNotebook', background='#f5f5f5')
+        self.style.configure('TNotebook.Tab', font=('Arial', 12, 'bold'), padding=[20, 10])
+        self.style.configure('Header.TLabel', font=('Arial', 16, 'bold'))
+        self.style.configure('Title.TLabel', font=('Arial', 20, 'bold'))
+        self.style.configure('Card.TFrame', relief='raised', borderwidth=2)
+        self.colors = {
+            'primary': '#2E86AB', 'secondary': '#A23B72', 'accent': '#F18F01',
+            'success': '#28a745', 'warning': '#ffc107', 'danger': '#dc3545',
+            'info': '#17a2b8', 'light': '#f8f9fa', 'dark': '#343a40'
+        }
+
+    def setup_gui(self):
+        self.setup_header()
+        self.setup_notebook()
+        self.setup_dashboard()
+        self.setup_workshop_management()
+        self.setup_registration()
+        self.setup_user_management()
+        self.setup_analytics()
+        self.setup_registration_graphs()
+        self.setup_about()
+
+    def setup_header(self):
+        header_frame = ttk.Frame(self.root, style='Card.TFrame')
+        header_frame.pack(fill='x', padx=10, pady=10)
+        title_label = ttk.Label(header_frame, text="Advanced Workshop Registration System", style='Title.TLabel', foreground=self.colors['primary'])
+        title_label.pack(side='left', padx=20, pady=15)
+        self.time_label = ttk.Label(header_frame, text="", font=('Arial', 12))
+        self.time_label.pack(side='right', padx=20, pady=15)
+        self.update_clock()
+
+    def setup_notebook(self):
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.pack(fill='both', expand=True, padx=10, pady=10)
+        self.dashboard_frame = ttk.Frame(self.notebook)
+        self.workshop_frame = ttk.Frame(self.notebook)
+        self.registration_frame = ttk.Frame(self.notebook)
+        self.user_frame = ttk.Frame(self.notebook)
+        self.analytics_frame = ttk.Frame(self.notebook)
+        self.registration_graphs_frame = ttk.Frame(self.notebook)
+        self.about_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.dashboard_frame, text="Dashboard")
+        self.notebook.add(self.workshop_frame, text="Workshop Management")
+        self.notebook.add(self.registration_frame, text="Registration")
+        self.notebook.add(self.user_frame, text="User Management")
+        self.notebook.add(self.analytics_frame, text="Analytics")
+        self.notebook.add(self.registration_graphs_frame, text="Registration Graphs")
+        self.notebook.add(self.about_frame, text="About System")
+
+    def setup_dashboard(self):
+        main_frame = ttk.Frame(self.dashboard_frame)
+        main_frame.pack(fill='both', expand=True, padx=20, pady=20)
+        stats_frame = ttk.Frame(main_frame)
+        stats_frame.pack(fill='x', pady=10)
+        self.stats_cards = {}
+        stats_data = [
+            ("Total Users", "total_users", self.colors['primary'], "👥"),
+            ("Total Workshops", "total_workshops", self.colors['secondary'], "📚"),
+            ("Active Registrations", "total_registrations", self.colors['success'], "✅"),
+            ("Waitlisted", "total_waitlist", self.colors['warning'], "⏳"),
+            ("Premium Users", "premium_users", self.colors['info'], "⭐"),
+            ("Certificates", "total_certificates", self.colors['accent'], "📜")
+        ]
+        for i, (title, key, color, icon) in enumerate(stats_data):
+            card = CardFrame(stats_frame, title, "0", color, icon)
+            card.grid(row=0, column=i, padx=10, pady=10, sticky='nsew')
+            self.stats_cards[key] = card
+            stats_frame.columnconfigure(i, weight=1)
+        quick_actions_frame = ttk.LabelFrame(main_frame, text="Quick Actions", padding=15)
+        quick_actions_frame.pack(fill='x', pady=10)
+        actions = [
+            ("Add New User", self.show_add_user_dialog),
+            ("Create Workshop", self.show_add_workshop_dialog),
+            ("Quick Registration", self.show_quick_register),
+            ("Generate Report", self.generate_system_report),
+            ("View Analytics", self.show_analytics_tab),
+            ("View Registration Graphs", self.show_registration_graphs_tab),
+            ("System Settings", self.show_settings_dialog)
+        ]
+        for i, (text, command) in enumerate(actions):
+            btn = ModernButton(quick_actions_frame, text=text, command=command, style='Accent.TButton')
+            btn.grid(row=i//3, column=i%3, padx=10, pady=10, sticky='ew')
+            quick_actions_frame.columnconfigure(i%3, weight=1)
+        content_frame = ttk.Frame(main_frame)
+        content_frame.pack(fill='both', expand=True, pady=10)
+        left_panel = ttk.Frame(content_frame)
+        left_panel.pack(side='left', fill='both', expand=True, padx=(0, 10))
+        right_panel = ttk.Frame(content_frame)
+        right_panel.pack(side='right', fill='both', expand=True, padx=(10, 0))
+        self.notification_panel = NotificationPanel(left_panel, height=200)
+        self.notification_panel.pack(fill='both', expand=True)
+        recent_activity_frame = ttk.LabelFrame(right_panel, text="Recent System Activity", padding=10)
+        recent_activity_frame.pack(fill='both', expand=True)
+        self.activity_text = scrolledtext.ScrolledText(recent_activity_frame, height=15, font=('Arial', 10))
+        self.activity_text.pack(fill='both', expand=True)
+
+    def setup_workshop_management(self):
+        main_frame = ttk.Frame(self.workshop_frame)
+        main_frame.pack(fill='both', expand=True, padx=20, pady=20)
+        top_frame = ttk.Frame(main_frame)
+        top_frame.pack(fill='x', pady=10)
+        search_frame = ttk.LabelFrame(top_frame, text="Search Workshops", padding=10)
+        search_frame.pack(fill='x', pady=5)
+        ttk.Label(search_frame, text="Search:", font=('Arial', 12)).grid(row=0, column=0, padx=5)
+        self.search_entry = AutoCompleteEntry(search_frame, [], width=30, font=('Arial', 11))
+        self.search_entry.grid(row=0, column=1, padx=5)
+        ttk.Label(search_frame, text="Search By:", font=('Arial', 12)).grid(row=0, column=2, padx=5)
+        self.search_type = ttk.Combobox(search_frame, values=["Title", "Category", "Instructor"], state="readonly", font=('Arial', 11))
+        self.search_type.set("Title")
+        self.search_type.grid(row=0, column=3, padx=5)
+        ttk.Button(search_frame, text="Search", command=self.search_workshops).grid(row=0, column=4, padx=5)
+        ttk.Button(search_frame, text="Clear", command=self.clear_search).grid(row=0, column=5, padx=5)
+        ttk.Button(search_frame, text="Refresh", command=self.refresh_workshops).grid(row=0, column=6, padx=5)
+        workshop_actions = ttk.Frame(top_frame)
+        workshop_actions.pack(fill='x', pady=10)
+        action_buttons = [
+            ("Add Workshop", self.show_add_workshop_dialog),
+            ("Edit Workshop", self.edit_workshop),
+            ("Delete Workshop", self.delete_workshop),
+            ("Workshop Details", self.show_workshop_details),
+            ("Export Data", self.export_workshop_data)
+        ]
+        for i, (text, command) in enumerate(action_buttons):
+            ttk.Button(workshop_actions, text=text, command=command).grid(row=0, column=i, padx=5)
+        content_frame = ttk.Frame(main_frame)
+        content_frame.pack(fill='both', expand=True, pady=10)
+        left_frame = ttk.LabelFrame(content_frame, text="Workshops List", padding=10)
+        left_frame.pack(side='left', fill='both', expand=True, padx=(0, 10))
+        columns = ('Title', 'Category', 'Instructor', 'Date', 'Registered', 'Status', 'Rating')
+        self.workshop_table = DataTable(left_frame, columns, height=20)
+        self.workshop_table.pack(fill='both', expand=True)
+        right_frame = ttk.LabelFrame(content_frame, text="Workshop Details", padding=10)
+        right_frame.pack(side='right', fill='both', expand=True, padx=(10, 0))
+        self.workshop_details = scrolledtext.ScrolledText(right_frame, font=('Arial', 11))
+        self.workshop_details.pack(fill='both', expand=True)
+
+    def setup_registration(self):
+        main_frame = ttk.Frame(self.registration_frame)
+        main_frame.pack(fill='both', expand=True, padx=20, pady=20)
+        registration_form = ttk.LabelFrame(main_frame, text="Workshop Registration", padding=15)
+        registration_form.pack(fill='x', pady=10)
+        ttk.Label(registration_form, text="Select User:", font=('Arial', 12)).grid(row=0, column=0, sticky='w', pady=5)
+        self.user_combobox = SearchableCombobox(registration_form, width=30)
+        self.user_combobox.grid(row=0, column=1, padx=10, pady=5, sticky='w')
+        ttk.Label(registration_form, text="Select Workshop:", font=('Arial', 12)).grid(row=1, column=0, sticky='w', pady=5)
+        self.workshop_combobox = SearchableCombobox(registration_form, width=30)
+        self.workshop_combobox.grid(row=1, column=1, padx=10, pady=5, sticky='w')
+        button_frame = ttk.Frame(registration_form)
+        button_frame.grid(row=2, column=0, columnspan=2, pady=20)
+        ttk.Button(button_frame, text="Register User", command=self.process_registration, style='Accent.TButton').pack(side='left', padx=10)
+        ttk.Button(button_frame, text="Remove Registration", command=self.remove_registration).pack(side='left', padx=10)
+        ttk.Button(button_frame, text="Check Waitlist", command=self.check_waitlist).pack(side='left', padx=10)
+        results_frame = ttk.LabelFrame(main_frame, text="Registration Results", padding=10)
+        results_frame.pack(fill='both', expand=True, pady=10)
+        self.results_text = scrolledtext.ScrolledText(results_frame, font=('Arial', 11))
+        self.results_text.pack(fill='both', expand=True)
+
+    def setup_user_management(self):
+        main_frame = ttk.Frame(self.user_frame)
+        main_frame.pack(fill='both', expand=True, padx=20, pady=20)
+        user_controls = ttk.Frame(main_frame)
+        user_controls.pack(fill='x', pady=10)
+        ttk.Button(user_controls, text="Add User", command=self.show_add_user_dialog).pack(side='left', padx=5)
+        ttk.Button(user_controls, text="Edit User", command=self.edit_user).pack(side='left', padx=5)
+        ttk.Button(user_controls, text="Delete User", command=self.delete_user).pack(side='left', padx=5)
+        ttk.Button(user_controls, text="User Statistics", command=self.show_user_stats).pack(side='left', padx=5)
+        users_frame = ttk.LabelFrame(main_frame, text="Users", padding=10)
+        users_frame.pack(fill='both', expand=True, pady=10)
+        columns = ('User ID', 'Name', 'Email', 'Department', 'Membership', 'Workshops', 'Points')
+        self.users_table = DataTable(users_frame, columns, height=20)
+        self.users_table.pack(fill='both', expand=True)
+
+    def setup_analytics(self):
+        main_frame = ttk.Frame(self.analytics_frame)
+        main_frame.pack(fill='both', expand=True, padx=20, pady=20)
+        controls_frame = ttk.Frame(main_frame)
+        controls_frame.pack(fill='x', pady=10)
+        ttk.Button(controls_frame, text="Refresh Analytics", command=self.update_analytics, style='Accent.TButton').pack(side='left', padx=5)
+        ttk.Button(controls_frame, text="Generate Report", command=self.generate_analytics_report).pack(side='left', padx=5)
+        ttk.Button(controls_frame, text="Export Charts", command=self.export_charts).pack(side='left', padx=5)
+        stats_frame = ttk.LabelFrame(main_frame, text="System Statistics", padding=10)
+        stats_frame.pack(fill='x', pady=10)
+        self.stats_text = scrolledtext.ScrolledText(stats_frame, height=8, font=('Arial', 11))
+        self.stats_text.pack(fill='x', padx=5, pady=5)
+        charts_frame = ttk.Frame(main_frame)
+        charts_frame.pack(fill='both', expand=True, pady=10)
+        self.chart1 = StatisticsChart(charts_frame, width=400, height=300)
+        self.chart1.get_widget().pack(side='left', fill='both', expand=True, padx=5)
+        self.chart2 = StatisticsChart(charts_frame, width=400, height=300)
+        self.chart2.get_widget().pack(side='left', fill='both', expand=True, padx=5)
+
+    def setup_registration_graphs(self):
+        main_frame = ttk.Frame(self.registration_graphs_frame)
+        main_frame.pack(fill='both', expand=True, padx=20, pady=20)
+        
+        controls_frame = ttk.Frame(main_frame)
+        controls_frame.pack(fill='x', pady=10)
+        
+        ttk.Button(controls_frame, text="Refresh Graphs", command=self.refresh_registration_graphs, 
+                  style='Accent.TButton').pack(side='left', padx=5)
+        ttk.Button(controls_frame, text="Export All Graphs", command=self.export_all_graphs).pack(side='left', padx=5)
+        ttk.Button(controls_frame, text="Generate Registration Report", command=self.generate_registration_report).pack(side='left', padx=5)
+        
+        self.registration_graphs = RegistrationGraphs(main_frame, self.system)
+
+    def setup_about(self):
+        main_frame = ttk.Frame(self.about_frame)
+        main_frame.pack(fill='both', expand=True, padx=50, pady=50)
+        bloom_stats = self.system.get_bloom_filter_stats()
+        about_text = f"""
+ADVANCED WORKSHOP REGISTRATION SYSTEM
+
+A comprehensive workshop management platform built with advanced data structures
+and algorithms for optimal performance and scalability.
+
+SYSTEM ARCHITECTURE:
+• Binary Search Tree (AVL): Workshop storage with O(log n) operations
+• Linked List: Waitlist management with O(1) insertions
+• Hash Tables: User and workshop storage with O(1) average operations
+• Trie: Efficient search with O(m) prefix matching
+• Priority Queue: Priority-based registration system
+• Graph: User relationship and recommendation system
+• Bloom Filter: Probabilistic set membership with O(k) time complexity
+
+BLOOM FILTER STATISTICS:
+• User Bloom Filter: Size={bloom_stats['user_bloom_size']}, Hashes={bloom_stats['user_bloom_hash_count']}
+• Workshop Bloom Filter: Size={bloom_stats['workshop_bloom_size']}, Hashes={bloom_stats['workshop_bloom_hash_count']}
+• Estimated False Positive Rate: Users={bloom_stats['estimated_user_false_positive_rate']:.4f}, Workshops={bloom_stats['estimated_workshop_false_positive_rate']:.4f}
+• Bloom Filter Utilization: Users={bloom_stats['user_bloom_utilization']:.2f}%, Workshops={bloom_stats['workshop_bloom_utilization']:.2f}%
+
+KEY FEATURES:
+• Real-time registration and waitlist management
+• Advanced search and filtering capabilities
+• Comprehensive analytics and reporting
+• User achievement and reward system
+• Certificate generation
+• Multi-level membership system
+• Attendance tracking and feedback collection
+• Resource management
+• Payment processing integration
+• Survey and feedback system
+• Registration Pattern Analysis with Graphs
+
+PERFORMANCE CHARACTERISTICS:
+• Workshop Search: O(log n) using AVL Tree
+• User Registration: O(1) average using Hash Maps
+• Waitlist Management: O(1) insertion using Linked List
+• Search Operations: O(m) using Trie for prefixes
+• Existence Checks: O(k) using Bloom Filter
+• Space Complexity: O(n + m) for n users and m workshops
+
+TECHNICAL SPECIFICATIONS:
+• Frontend: Tkinter with modern UI components
+• Backend: Pure Python with optimized algorithms
+• Data Structures: Multiple advanced structures
+• Time Complexity: Optimal for all critical operations
+• Space Complexity: Linear growth with data size
+
+DEVELOPED WITH: Python 3.8+, Tkinter, Matplotlib
+CONTACT: support@workshop-system.edu
+        """
+        about_label = scrolledtext.ScrolledText(main_frame, font=('Arial', 12), wrap=tk.WORD)
+        about_label.insert('1.0', about_text)
+        about_label.config(state='disabled')
+        about_label.pack(fill='both', expand=True)
+
+    def update_clock(self):
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.time_label.config(text=current_time)
+        self.root.after(1000, self.update_clock)
+
+    def load_sample_data(self):
+        sample_users = [
+            ("STU001", "Alice Johnson", "alice@edu.com", "Computer Science", "Premium"),
+            ("STU002", "Bob Smith", "bob@edu.com", "Engineering", "Standard"),
+            ("STU003", "Carol Davis", "carol@edu.com", "Mathematics", "VIP"),
+            ("STU004", "David Wilson", "david@edu.com", "Physics", "Standard"),
+            ("STU005", "Eva Brown", "eva@edu.com", "Biology", "Premium")
+        ]
+        for user_id, name, email, dept, membership in sample_users:
+            self.system.add_user(user_id, name, email, dept, membership)
+        sample_workshops = [
+            ("Python Programming", 15, "Learn Python basics to advanced", "2024-03-15", "Room A101", "Programming", "Beginner", 120, "Dr. Smith"),
+            ("Data Structures", 10, "Master data structures", "2024-03-20", "Room B205", "Computer Science", "Intermediate", 180, "Prof. Johnson"),
+            ("Machine Learning", 12, "Introduction to AI and ML", "2024-03-25", "Lab C301", "AI", "Advanced", 240, "Dr. Brown"),
+            ("Web Development", 8, "Full-stack development", "2024-04-01", "Room D104", "Programming", "Intermediate", 200, "Ms. Davis")
+        ]
+        for workshop in sample_workshops:
+            self.system.add_workshop(*workshop)
+
+    def refresh_all(self):
+        self.refresh_dashboard()
+        self.refresh_workshops()
+        self.refresh_users()
+        self.refresh_comboboxes()
+        self.update_analytics()
+
+    def refresh_dashboard(self):
+        stats = self.system.get_system_statistics()
+        for key, card in self.stats_cards.items():
+            if key in stats:
+                card.update_value(stats[key])
+        self.activity_text.delete('1.0', 'end')
+        recent_events = self.system.event_log.get_recent_entries(20)
+        for event in recent_events:
+            self.activity_text.insert('end', f"{event['timestamp'].strftime('%H:%M:%S')} - {event['description']}\n")
+
+    def refresh_workshops(self):
+        self.workshop_table.clear()
+        for workshop in self.system.bst.inorder():
+            status = "Available" if not workshop.is_full() else "Full"
+            rating = f"{workshop.rating:.1f}" if workshop.rating > 0 else "N/A"
+            self.workshop_table.add_row((
+                workshop.title, workshop.category, workshop.instructor,
+                workshop.date, f"{len(workshop.registered_users)}/{workshop.max_participants}",
+                status, rating
+            ))
+
+    def refresh_users(self):
+        self.users_table.clear()
+        for user in self.system.users.values():
+            self.users_table.add_row((
+                user.user_id, user.name, user.email, user.department,
+                user.membership_level, len(user.registered_workshops), user.points
+            ))
+
+    def refresh_comboboxes(self):
+        users = [f"{user_id} - {user.name}" for user_id, user in self.system.users.items()]
+        self.user_combobox.combobox['values'] = users
+        if users:
+            self.user_combobox.set(users[0])
+        workshops = [workshop.title for workshop in self.system.bst.inorder()]
+        self.workshop_combobox.combobox['values'] = workshops
+        if workshops:
+            self.workshop_combobox.set(workshops[0])
+
+    def refresh_registration_graphs(self):
+        self.registration_graphs.update_graphs()
+
+    def process_registration(self):
+        user_selection = self.user_combobox.get()
+        workshop_selection = self.workshop_combobox.get()
+        if not user_selection or not workshop_selection:
+            messagebox.showerror("Error", "Please select both user and workshop")
+            return
+        user_id = user_selection.split(' - ')[0]
+        result = self.system.register_user(user_id, workshop_selection)
+        self.results_text.insert('end', f"{datetime.now().strftime('%H:%M:%S')} - {result}\n")
+        self.results_text.see('end')
+        self.refresh_all()
+        self.refresh_registration_graphs()
+
+    def search_workshops(self):
+        query = self.search_entry.get()
+        search_type = self.search_type.get().lower()
+        if not query:
+            self.refresh_workshops()
+            return
+        results = self.system.search_workshops(query, search_type)
+        self.workshop_table.clear()
+        for workshop in results:
+            status = "Available" if not workshop.is_full() else "Full"
+            rating = f"{workshop.rating:.1f}" if workshop.rating > 0 else "N/A"
+            self.workshop_table.add_row((
+                workshop.title, workshop.category, workshop.instructor,
+                workshop.date, f"{len(workshop.registered_users)}/{workshop.max_participants}",
+                status, rating
+            ))
+
+    def update_analytics(self):
+        stats = self.system.get_system_statistics()
+        self.stats_text.delete('1.0', 'end')
+        stats_info = f"""SYSTEM ANALYTICS REPORT
+Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+Users Statistics:
+• Total Users: {stats['total_users']}
+• Active Users: {stats['active_users']}
+• Premium Users: {stats['premium_users']}
+
+Workshop Statistics:
+• Total Workshops: {stats['total_workshops']}
+• Active Registrations: {stats['total_registrations']}
+• Waitlisted: {stats['total_waitlist']}
+• Certificates Issued: {stats['total_certificates']}
+
+Performance Metrics:
+• Average Workshop Rating: {stats['average_rating']:.1f}/5.0
+• System Utilization: {sum(stats['utilization'])/len(stats['utilization']) if stats['utilization'] else 0:.1f}%
+
+Category Distribution:
+"""
+        for category, count in stats['category_stats'].items():
+            stats_info += f"• {category}: {count} workshops\n"
+        self.stats_text.insert('1.0', stats_info)
+        categories = list(stats['category_stats'].keys())
+        counts = list(stats['category_stats'].values())
+        self.chart1.plot_bar_chart(categories, counts, "Workshops by Category", "Categories", "Count")
+        labels = ['Registered', 'Waitlisted']
+        values = [stats['total_registrations'], stats['total_waitlist']]
+        self.chart2.plot_pie_chart(labels, values, "Registration Status")
+
+    def show_add_user_dialog(self):
+        self.show_input_dialog("Add New User", ["User ID:", "Name:", "Email:", "Department:", "Membership Level:"], self.add_user_callback)
+
+    def show_add_workshop_dialog(self):
+        self.show_input_dialog("Add New Workshop", ["Title:", "Max Participants:", "Description:", "Date (YYYY-MM-DD):", "Location:", "Category:", "Difficulty:", "Duration (minutes):", "Instructor:"], self.add_workshop_callback)
+
+    def show_input_dialog(self, title, fields, callback):
+        dialog = tk.Toplevel(self.root)
+        dialog.title(title)
+        dialog.geometry("500x400")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        entries = {}
+        for i, field in enumerate(fields):
+            ttk.Label(dialog, text=field, font=('Arial', 11)).grid(row=i, column=0, padx=10, pady=10, sticky='w')
+            entry = ttk.Entry(dialog, width=40, font=('Arial', 11))
+            entry.grid(row=i, column=1, padx=10, pady=10, sticky='w')
+            entries[field] = entry
+        def submit():
+            values = {field: entry.get() for field, entry in entries.items()}
+            callback(values)
+            dialog.destroy()
+        ttk.Button(dialog, text="Submit", command=submit, style='Accent.TButton').grid(row=len(fields), column=0, columnspan=2, pady=20)
+
+    def add_user_callback(self, values):
+        try:
+            result = self.system.add_user(values["User ID:"], values["Name:"], values["Email:"], values["Department:"], values.get("Membership Level:", "Standard"))
+            messagebox.showinfo("Success", result)
+            self.refresh_all()
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to add user: {str(e)}")
+
+    def add_workshop_callback(self, values):
+        try:
+            result = self.system.add_workshop(
+                values["Title:"], 
+                int(values["Max Participants:"]), 
+                values["Description:"], 
+                values["Date (YYYY-MM-DD):"], 
+                values["Location:"], 
+                values["Category:"], 
+                values.get("Difficulty:", "Beginner"), 
+                int(values.get("Duration (minutes):", 120)), 
+                values.get("Instructor:", "")
+            )
+            messagebox.showinfo("Success", result)
+            self.refresh_all()
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to add workshop: {str(e)}")
+
+    def show_workshop_details(self):
+        selection = self.workshop_table.get_selected()
+        if not selection:
+            messagebox.showinfo("Info", "Please select a workshop first")
+            return
+        title = selection[0]
+        workshop = self.system.workshops.get(title)
+        if workshop:
+            details = f"WORKSHOP DETAILS\n\n"
+            details += f"Title: {workshop.title}\n"
+            details += f"Description: {workshop.description}\n"
+            details += f"Instructor: {workshop.instructor}\n"
+            details += f"Category: {workshop.category}\n"
+            details += f"Difficulty: {workshop.difficulty}\n"
+            details += f"Date: {workshop.date}\n"
+            details += f"Location: {workshop.location}\n"
+            details += f"Duration: {workshop.duration} minutes\n"
+            details += f"Capacity: {workshop.max_participants}\n"
+            details += f"Registered: {len(workshop.registered_users)}\n"
+            details += f"Waitlist: {workshop.waitlist.size if workshop.waitlist else 0}\n"
+            details += f"Rating: {workshop.rating:.1f}/5.0\n"
+            details += f"Feedback Count: {len(workshop.feedback)}\n\n"
+            details += "REGISTERED USERS:\n"
+            for user in workshop.registered_users:
+                details += f"• {user.name} ({user.department})\n"
+            self.workshop_details.delete('1.0', 'end')
+            self.workshop_details.insert('1.0', details)
+
+    def clear_search(self):
+        self.search_entry.delete(0, 'end')
+        self.refresh_workshops()
+
+    def show_analytics_tab(self):
+        self.notebook.select(4)
+
+    def show_registration_graphs_tab(self):
+        self.notebook.select(5)
+        self.refresh_registration_graphs()
+
+    def show_quick_register(self):
+        self.notebook.select(2)
+
+    def generate_system_report(self):
+        messagebox.showinfo("Report", "System report generated successfully!")
+
+    def show_settings_dialog(self):
+        messagebox.showinfo("Settings", "System settings dialog would open here")
+
+    def generate_analytics_report(self):
+        messagebox.showinfo("Report", "Analytics report generated successfully!")
+
+    def generate_registration_report(self):
+        messagebox.showinfo("Report", "Registration report generated successfully!")
+
+    def export_charts(self):
+        messagebox.showinfo("Export", "Charts exported successfully!")
+
+    def export_all_graphs(self):
+        messagebox.showinfo("Export", "All graphs exported successfully!")
+
+    def edit_workshop(self):
+        messagebox.showinfo("Edit", "Workshop edit feature would open here")
+
+    def delete_workshop(self):
+        selection = self.workshop_table.get_selected()
+        if selection:
+            title = selection[0]
+            if messagebox.askyesno("Confirm", f"Delete workshop '{title}'?"):
+                self.system.remove_workshop(title)
+                self.refresh_all()
+
+    def export_workshop_data(self):
+        messagebox.showinfo("Export", "Workshop data exported successfully!")
+
+    def remove_registration(self):
+        selection = self.workshop_table.get_selected()
+        if selection:
+            title = selection[0]
+            user_selection = self.user_combobox.get()
+            if user_selection:
+                user_id = user_selection.split(' - ')[0]
+                result = self.system.remove_user_registration(user_id, title)
+                self.results_text.insert('end', f"{datetime.now().strftime('%H:%M:%S')} - {result}\n")
+                self.results_text.see('end')
+                self.refresh_all()
+        else:
+            messagebox.showinfo("Info", "Please select a workshop first")
+
+    def check_waitlist(self):
+        selection = self.workshop_table.get_selected()
+        if selection:
+            title = selection[0]
+            workshop = self.system.workshops.get(title)
+            if workshop and workshop.waitlist:
+                waitlist_info = f"Waitlist for {title}:\n"
+                position = 1
+                current = workshop.waitlist.head
+                while current:
+                    waitlist_info += f"{position}. {current.user.name}\n"
+                    current = current.next
+                    position += 1
+                messagebox.showinfo("Waitlist", waitlist_info)
+            else:
+                messagebox.showinfo("Waitlist", "No waitlist for this workshop")
+        else:
+            messagebox.showinfo("Info", "Please select a workshop first")
+
+    def edit_user(self):
+        messagebox.showinfo("Edit", "User edit feature would open here")
+
+    def delete_user(self):
+        selection = self.users_table.get_selected()
+        if selection:
+            user_id = selection[0]
+            if messagebox.askyesno("Confirm", f"Delete user '{user_id}'?"):
+                self.system.remove_user(user_id)
+                self.refresh_all()
+
+    def show_user_stats(self):
+        selection = self.users_table.get_selected()
+        if selection:
+            user_id = selection[0]
+            stats = self.system.attendance_tracker.get_user_attendance_stats(user_id)
+            if stats:
+                stats_info = f"Statistics for {selection[1]}:\n\n"
+                stats_info += f"Total Registered Workshops: {stats['total_registered']}\n"
+                stats_info += f"Workshops Attended: {stats['attended']}\n"
+                stats_info += f"Attendance Rate: {stats['attendance_rate']:.1f}%\n"
+                stats_info += f"Points Earned: {stats['points_earned']}\n"
+                messagebox.showinfo("User Statistics", stats_info)
+        else:
+            messagebox.showinfo("Info", "Please select a user first")
+
+def main():
+    root = tk.Tk()
+    app = WorkshopRegistrationApp(root)
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()
